@@ -3446,6 +3446,9 @@ int main() {
 
                         memset(mainram,0,0x10000);
                         memset(vram,0,0x1000);
+                        memset(ioport,0,0x100);
+                        memset(memioport,0,0x100);
+                        
                         vrambank=0;
                         rombank=0;
 

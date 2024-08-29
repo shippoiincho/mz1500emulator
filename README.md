@@ -70,7 +70,8 @@ https://mkusunoki.net/?p=8196 等を参考にしてください。
 いつものように純正ROM が必要です。
 `mzipl` `mzext` `mzfont` にそれぞれ、IPL、拡張 ROM、フォントを入れてください。
 
-なお MZ-700 として使えるように、互換 ROM & FONT を同梱しています。(拡張 ROM がないので、QD は使えません)
+なお実機の ROM がなくても MZ-700 として使えるように、互換 ROM & FONT を同梱しています。(拡張 ROM がないので、QD は使えません)
+冒頭の `#define USE_NEWMON` を有効にしてください。
 
 MZ-NEWMON
 http://mzakd.cool.coocan.jp/mz-memories/mz700win.html##6
@@ -88,11 +89,13 @@ http://mzakd.cool.coocan.jp/mz-memories/mz700win.html##6
 
 このエミュレータは以下のライブラリを使用しています。
 
-[libz80](https://github.com/ggambetta/libz80/tree/master)
-[VGA ライブラリ(一部改変)](https://github.com/vha3/Hunter-Adams-RP2040-Demos/tree/master/VGA_Graphics)
-[LittleFS](https://github.com/littlefs-project/littlefs)
+- [libz80](https://github.com/ggambetta/libz80/tree/master)
+- [VGA ライブラリ(一部改変)](https://github.com/vha3/Hunter-Adams-RP2040-Demos/tree/master/VGA_Graphics)
+- [LittleFS](https://github.com/littlefs-project/littlefs)
 
 ---
 # Gallary
 
 ![S-BASIC](/pictures/screenshot01.jpg)
+![GAME1](/pictures/screenshot02.jpg)
+![GAME2](/pictures/screenshot03.jpg)
