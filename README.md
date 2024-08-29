@@ -1,6 +1,6 @@
 MZ-1500 Emulator for Raspberry Pi Pico
 ---
-[screenshot](/pictures/screenshot00.jpg)
+![screenshot](/pictures/screenshot00.jpg)
 SHARP MZ-700/1500 のエミュレータです。
 以下の機能を実装しています。
 
@@ -95,4 +95,4 @@ http://mzakd.cool.coocan.jp/mz-memories/mz700win.html##6
 ---
 # Gallary
 
-[S-BASIC](/pictures/screenshot01.jpg)
+![S-BASIC](/pictures/screenshot01.jpg)
