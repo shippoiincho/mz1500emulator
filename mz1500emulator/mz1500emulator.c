@@ -34,7 +34,7 @@
 
 #include "lfs.h"
 
-//#define USE_NEWMON
+#define USE_NEWMON
 //#define USE_KANJI
 
 #ifdef USE_KANJI

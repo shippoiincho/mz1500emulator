@@ -68,7 +68,8 @@ https://mkusunoki.net/?p=8196 等を参考にしてください。
 # ROM など
 
 いつものように純正ROM が必要です。
-`mzipl` `mzext` `mzfont` にそれぞれ、IPL、拡張 ROM、フォントを入れてください。
+`mznewrom.h` を `mzrom.h` にコピーしたのち、
+`mzipl` `mzext` `mzfont` にそれぞれ、IPL、拡張 ROM、フォントのデータを入れてください。
 
 なお実機の ROM がなくても MZ-700 として使えるように、互換 ROM & FONT を同梱しています。(拡張 ROM がないので、QD は使えません)
 冒頭の `#define USE_NEWMON` を有効にしてください。
