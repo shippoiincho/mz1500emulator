@@ -1,0 +1,4 @@
+build/
+mz1500emulator/mzrom.h
+mz1500emulator/mztest.h
+mz1500emulator/mzkanji.h
