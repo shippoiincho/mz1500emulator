@@ -292,7 +292,7 @@ bool __not_in_flash_func(hsync_handler)(struct repeating_timer *t) {
     // channel 1 15.75kHz
 
         if((i8253_access[1]<2)&&(i8253_preload[1]!=0)) {
-            if(i8253_counter[1]>2) {
+            if(i8253_counter[1]>1) {
                 i8253_counter[1]--;
                     } else {
                 i8253_counter[1]=i8253_preload[1];
@@ -1656,6 +1656,20 @@ int file_selector(void) {
             }
         }
 
+        if(keypressed==0x4b) { // Pageup
+            keypressed=0;
+            if(num_selected>=LFS_LS_FILES) {
+                num_selected-=LFS_LS_FILES;
+            }
+        }
+
+        if(keypressed==0x4e) { // Pagedown
+            keypressed=0;
+            if(num_selected<num_files-LFS_LS_FILES) {
+                num_selected+=LFS_LS_FILES;
+            }
+        }
+
         if(keypressed==0x28) { // Ret
             keypressed=0;
 
@@ -2195,11 +2209,11 @@ void process_kbd_report(hid_keyboard_report_t const *report) {
             keymatrix[8]&= ~0x01;
         }
 
-        if((report->modifier)&0x11) { // alt = Graph
+        if((report->modifier)&0x11) { // ctrl
             keymatrix[8]&= ~0x40;
         }
 
-        if((report->modifier)&0x44) { // ctrl
+        if((report->modifier)&0x44) { // alt = Graph
             keymatrix[0]&= ~0x40;
 
         }
