@@ -85,13 +85,15 @@ http://mzakd.cool.coocan.jp/mz-memories/mz700win.html##6
 
 - 最初に起動する際に LittleFS のフォーマットで固まることがあります。(リセットでOK)
 - 辞書ROMの動作確認をしていません。
+- Pico SDK 2.0 ではうまく動かないかもしれません。
 
 ---
 # ライセンスなど
 
 このエミュレータは以下のライブラリを使用しています。
 
-- [libz80](https://github.com/ggambetta/libz80/tree/master)
+- [Z80](https://github.com/redcode/Z80/tree/master)
+- [Zeta](https://github.com/redcode/Zeta)
 - [VGA ライブラリ(一部改変)](https://github.com/vha3/Hunter-Adams-RP2040-Demos/tree/master/VGA_Graphics)
 - [LittleFS](https://github.com/littlefs-project/littlefs)
 

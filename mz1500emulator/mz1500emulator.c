@@ -29,7 +29,7 @@
 #include "vga16_graphics.h"
 
 #include "mzkeymap.h"
-#include "z80.h"
+#include "Z80.h"
 #include "mzmisc.h"
 
 #include "lfs.h"
@@ -73,10 +73,13 @@ struct repeating_timer timer,timer2;
 
 // MZ configuration
 
-static Z80Context cpu;
+//static Z80Context cpu;
+static Z80 cpu;
 uint32_t cpu_clocks=0;
 uint32_t cpu_ei=0;
-int exec_reti;
+uint32_t cpu_cycles=0;
+uint32_t cpu_hsync=0;
+//int exec_reti;
 
 uint8_t mainram[0x10000];
 uint8_t vram[0x1000];
@@ -101,6 +104,7 @@ uint8_t i8253[3];
 uint8_t i8253_access[3];
 uint16_t i8253_preload[3];
 uint16_t i8253_counter[3];
+uint8_t i8253_pending[3];
 uint16_t i8253_latch[3];
 uint32_t i8253_latch_flag=0;
 volatile uint32_t i8253_enable_irq=0;
@@ -269,7 +273,7 @@ bool __not_in_flash_func(hsync_handler)(struct repeating_timer *t) {
 
     // Tempo 555 32Hz
 
-    if((scanline%246)==0) {
+    if((scanline%246)==0) {     
         if(tempo_timer) {
             tempo_timer=0;
         } else {
@@ -285,35 +289,40 @@ bool __not_in_flash_func(hsync_handler)(struct repeating_timer *t) {
         } else {
             cursor_timer=1;
         }
-
     }
 
     // run i8253 channel 1/2
-    // channel 1 15.75kHz
+    // Channel 1 15.75kHz (mode 2)
+    // Channel 2 (mode 0)
 
         if((i8253_access[1]<2)&&(i8253_preload[1]!=0)) {
             if(i8253_counter[1]>1) {
                 i8253_counter[1]--;
-                    } else {
-                i8253_counter[1]=i8253_preload[1];
-                if((i8253_access[2]<2)&&(i8253_preload[2]!=0)){
-                    if (i8253_counter[2]>1) {
-                       i8253_counter[2]--;
-                    } else {
-                        i8253_counter[2]=i8253_preload[2];
-
-                        // Timer Interrupt
-                        // Check mask
-                        if(memioport[2]&0x4) {
-                            i8253_enable_irq=2;
-                        }
-                        if((pioa[2]&0x80)&&((pioa[3]&0x20)==0)) { 
-                            pioa_enable_irq=1;
-                            ioport[0xfe]!=0x20;
-                        }
-                        
+                if (i8253_counter[1]==1) {
+                    if((i8253_access[2]<2)&&(i8253_preload[2]!=0)){
+                        if(i8253_pending[2]) {
+                            i8253_pending[2]=0;
+                        } else {
+                            if (i8253_counter[2]>1) {
+                                i8253_counter[2]--;
+                            } else {
+//                            i8253_counter[2]=i8253_preload[2];
+                              i8253_counter[2]=65535;
+                                // Timer Interrupt
+                                // Check mask
+                                if(memioport[2]&0x4) {
+                                    i8253_enable_irq=2;
+                                }
+                                if((pioa[2]&0x80)&&((pioa[3]&0x20)==0)) { 
+                                    pioa_enable_irq=1;
+                                    ioport[0xfe]!=0x20;
+                                }
+                            }
+                        } 
                     }
                 }
+            } else {
+                i8253_counter[1]=i8253_preload[1];
             }
         }
 
@@ -2279,7 +2288,8 @@ void process_kbd_report(hid_keyboard_report_t const *report) {
 
 }
 
-static byte mem_read(size_t param, ushort address)
+//static byte mem_read(size_t param, ushort address)
+static uint8_t mem_read(void *context,uint16_t address)
 {
 
     uint8_t b;
@@ -2425,7 +2435,8 @@ static byte mem_read(size_t param, ushort address)
   return mainram[address];
 }
 
-static void mem_write(size_t param, ushort address, byte data)
+//static void mem_write(size_t param, ushort address, byte data)
+static void mem_write(void *context,uint16_t address, uint8_t data)
 {
 
     uint8_t b;
@@ -2586,6 +2597,8 @@ static void mem_write(size_t param, ushort address, byte data)
 
                         }
 
+                        i8253_pending[addr-4]=1;
+
 //                        i8253_counter[addr-4]=i8253_preload[addr-4];
 
                         break;
@@ -2631,9 +2644,10 @@ static void mem_write(size_t param, ushort address, byte data)
 
 }
 
-static byte io_read(size_t param, ushort address)
+//static byte io_read(size_t param, ushort address)
+static uint8_t io_read(void *context, uint16_t address)
 {
-    byte data = ioport[address&0xff];
+    uint8_t data = ioport[address&0xff];
     uint8_t b;
     uint32_t kanji_addr;
 
@@ -2766,7 +2780,8 @@ static byte io_read(size_t param, ushort address)
   return 0xff;
 }
 
-static void io_write(size_t param, ushort address, byte data)
+//static void io_write(size_t param, ushort address, byte data)
+static void io_write(void *context, uint16_t address, uint8_t data)
 {
 
   uint8_t addr;
@@ -3036,6 +3051,46 @@ static void io_write(size_t param, ushort address, byte data)
 
 }
 
+static uint8_t ird_read(void *context,uint16_t address) {
+
+//    printf("INT:%d:%d:%d:%02x:%02x\n\r",cpu.im,pioa_enable_irq,pio_irq_processing,cpu.i,pioa[0]);
+
+    if(cpu.im==2) { // mode 2
+
+        if((pioa_enable_irq)&&(pio_irq_processing==0)) {
+
+            z80_int(&cpu,FALSE); 
+            pio_irq_processing=1;
+            return pioa[0];
+                    
+        }
+    
+    } else { // mode 1 
+
+        if(i8253_enable_irq) {
+
+            i8253_enable_irq=0;
+            z80_int(&cpu,FALSE); 
+            return 0xff;
+        }
+
+    } 
+
+    return 0xff;
+
+}
+
+static void reti_callback(void *context) {
+
+//    printf("RETI\n\r");
+
+    pio_irq_processing=0;
+    pioa_enable_irq=0;
+    piob_enable_irq=0;
+
+    z80_int(&cpu,FALSE);
+
+}
 
 void main_core1(void) {
 
@@ -3112,9 +3167,9 @@ int main() {
 
 // uart handler
 
-    irq_set_exclusive_handler(UART0_IRQ,uart_handler);
-    irq_set_enabled(UART0_IRQ,true);
-    uart_set_irq_enables(uart0,true,false);
+    // irq_set_exclusive_handler(UART0_IRQ,uart_handler);
+    // irq_set_enabled(UART0_IRQ,true);
+    // uart_set_irq_enables(uart0,true,false);
 
     multicore_launch_core1(main_core1);
 
@@ -3168,12 +3223,24 @@ int main() {
 #endif
 
 
-    cpu.memRead = mem_read;
-    cpu.memWrite = mem_write;
-    cpu.ioRead = io_read;
-    cpu.ioWrite = io_write;
+    // cpu.memRead = mem_read;
+    // cpu.memWrite = mem_write;
+    // cpu.ioRead = io_read;
+    // cpu.ioWrite = io_write;
 
-    Z80RESET(&cpu);
+    // Z80RESET(&cpu);
+
+    cpu.read = mem_read;
+    cpu.write = mem_write;
+    cpu.in = io_read;
+    cpu.out = io_write;
+	cpu.fetch = mem_read;
+    cpu.fetch_opcode = mem_read;
+    cpu.reti = reti_callback;
+    cpu.inta = ird_read;
+
+    z80_power(&cpu,true);
+    z80_instant_reset(&cpu);
 
     uint32_t cpuwait=0;
 
@@ -3185,30 +3252,37 @@ int main() {
 
         if(menumode==0) { // Emulator mode
 
-        exec_reti=0;
+//        exec_reti=0;
 
-        Z80Execute(&cpu);
+        // if((i8253_enable_irq==0)&&(pioa_enable_irq==0)) {
+        //    z80_int(&cpu,FALSE);
+        // }
+
+//        Z80Execute(&cpu);
+        cpu_cycles += z80_run(&cpu,1);
         cpu_clocks++;
 
-        // Mode 2 Interrupt (MZ-1500)
+        // // Mode 2 Interrupt (MZ-1500)
 
-        if(exec_reti) { // clear irq on Z80PIO/SIO
+        // if(exec_reti) { // clear irq on Z80PIO/SIO
 
-            if(pio_irq_processing) {
-                pio_irq_processing=0;
-                pioa_enable_irq=0;
-                piob_enable_irq=0;
-            }
-
-        }
+        //     if(pio_irq_processing) {
+        //         pio_irq_processing=0;
+        //         pioa_enable_irq=0;
+        //         piob_enable_irq=0;
+        //     }
+        // }
 
         if((pioa_enable_irq)&&(pio_irq_processing==0)) {
 
-            if((cpu.IFF1)&&(cpu.IM==2)) { 
-                    Z80INT(&cpu,pioa[0]);
-                    pio_irq_processing=1;
+            // if((cpu.IFF1)&&(cpu.IM==2)) { 
+            //         Z80INT(&cpu,pioa[0]);
+            //         pio_irq_processing=1;
                     
-                }
+            //     }
+            if((cpu.iff1)&&(cpu.im==2)) {
+                z80_int(&cpu,TRUE);
+            }
     
         }
 
@@ -3221,9 +3295,17 @@ int main() {
         // Mode 1 Interrupt (MZ-700)
 
         if(i8253_enable_irq) {
-            Z80INT(&cpu,0x38);
-            i8253_enable_irq=0; 
+            // Z80INT(&cpu,0x38);
+            // i8253_enable_irq=0; 
+            z80_int(&cpu,TRUE);
         }
+
+        // Wait
+
+        // if(cpu_cycles-cpu_hsync>225 ) { // 63us * 3.58MHz 
+        //     while(video_hsync==0);
+        //     cpu_hsync=cpu_cycles;
+        // }
 
         if(video_hsync==1) {
             hsync_wait++;
@@ -3328,12 +3410,7 @@ int main() {
 
             // cursor_x=3;
             //  cursor_y=17;
-            //      sprintf(str,"%04x %ld %x %x %x %x",cpu.PC,cpu_clocks,i8253[0],i8253_counter[0],i8253[2],i8253_counter[2]);
-            //      video_print(str);
-
-            // cursor_x=3;
-            //  cursor_y=17;
-            //      sprintf(str,"%04x %ld %d %d",cpu.PC,psg_note_count,psg_master_volume);
+            //      sprintf(str,"%04x %x %04x %04x %x %04x %04x",Z80_PC(cpu),i8253[1],i8253_counter[1],i8253_preload[1],i8253[2],i8253_counter[2],i8253_preload[2]);
             //      video_print(str);
 
             if(filelist==0) {
@@ -3445,7 +3522,7 @@ int main() {
                     
                         psg_reset(0);
 
-                        Z80RESET(&cpu);
+                        z80_instant_reset(&cpu);
 
                     }
 
@@ -3470,7 +3547,7 @@ int main() {
 
                         psg_reset(0);
 
-                        Z80RESET(&cpu);
+                        z80_instant_reset(&cpu);
 
                     }
 

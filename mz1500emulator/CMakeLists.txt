@@ -10,10 +10,15 @@ pico_generate_pio_header(mz1500emulator ${CMAKE_CURRENT_LIST_DIR}/rgb.pio)
 # Make sure TinyUSB can find tusb_config.h
 target_include_directories(mz1500emulator PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 
-target_sources(mz1500emulator PRIVATE mz1500emulator.c z80.c hid_app.c vga16_graphics.c lfs.c lfs_util.c)
+target_sources(mz1500emulator PRIVATE mz1500emulator.c Z80.c hid_app.c vga16_graphics.c lfs.c lfs_util.c)
 
 pico_enable_stdio_usb(mz1500emulator 0)
 pico_enable_stdio_uart(mz1500emulator 1)
+
+set(Z80_SHARED_LIBS                 NO  CACHE BOOL "")
+set(Z80_WITH_Q                      YES CACHE BOOL "")
+set(Z80_WITH_ZILOG_NMOS_LD_A_IR_BUG YES CACHE BOOL "")
+set(Z80_USE_LOCAL_HEADER            YES CACHE BOOL "")
 
 target_link_libraries(mz1500emulator PRIVATE pico_stdlib hardware_pio hardware_timer hardware_dma hardware_uart hardware_flash pico_multicore hardware_pwm tinyusb_host tinyusb_board)
 pico_add_extra_outputs(mz1500emulator)
