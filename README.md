@@ -61,9 +61,8 @@ LittleFS 上の MZT 形式のファイルをロード・セーブに用います
 QDF / MZT 形式のファイルの読み込みのみ対応しています。
 littleFS 上においてください。
 
-littleFS の作り方、イメージの書き込み方は、
-https://mkusunoki.net/?p=8196 等を参考にしてください。
-(SWD経由で書き込める装置が必要です)
+LittleFS の扱い方については、
+[こちらの記事を参照](https://shippoiincho.github.io/posts/39/)してください。
 
 ---
 # ROM など
@@ -79,6 +78,26 @@ MZ-NEWMON
 http://mzakd.cool.coocan.jp/mz-memories/mz700win.html##6
 
 漢字 ROM は互換 FONT で動作確認していますが、辞書 ROM の動作は未テストです。
+
+# コンバイル済みバイナリ
+
+コンパイル済みバイナリを `prebuild` ディレクトリ以下に置きました。
+
+- mz1500emulator.uf2   拡張ROM使用
+- mz700emulator.uf2    拡張ROM非使用 (MZ NEWMON 向け)
+
+各 uf2 を、Pico に書き込むのと合わせて、ROM ファイルを Pico に置きます。
+
+picotool を使う場合は、以下の通りで行けると思います。
+(picotool は pico-sdk に含まれています)
+
+```
+$ picotool load -v -x IPL.ROM -t bin -o 0x10070000
+$ picotool load -v -x FONT.ROM -t bin -o 0x10074000
+$ picotool load -v -x EXT.ROM  -t bin -o 0x10078000
+```
+MZ-700 として使う場合は、EXT.ROM の書き込みは不要です。
+
 
 ---
 # 制限事項

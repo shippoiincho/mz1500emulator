@@ -36,17 +36,28 @@
 
 //#define USE_NEWMON
 //#define USE_KANJI
+//#define PREBUILD_BINARY
+
+#ifndef PREBUILD_BINARY
 
 #ifdef USE_KANJI
 #include "mzkanji.h"
 #endif
-
 
 #ifdef USE_NEWMON
 #include "mznewrom.h"
 #else
 #include "mzrom.h"
 #endif
+
+#else 
+
+#include "mzrom prebuild.h"
+
+#undef USE_KANJI   // Disable KANJI 
+
+#endif
+
 
 // VGAout configuration
 
