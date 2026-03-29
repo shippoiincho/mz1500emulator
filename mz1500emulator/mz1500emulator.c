@@ -95,6 +95,7 @@ uint32_t cpu_hsync=0;
 uint8_t mainram[0x10000];
 uint8_t vram[0x1000];
 uint8_t pcg[0x6000];
+uint8_t pcg700[0x800];
 
 uint8_t ioport[0x100];
 uint8_t memioport[0x100];
@@ -104,6 +105,7 @@ uint8_t ramfile[0x10000];
 uint32_t rombank=0;
 uint32_t vrambank=0;
 uint32_t pcgbank=0;
+uint8_t pcg700ctrl=0;
 
 #ifdef USE_KANJI
 uint32_t kanji_ptr=0;
@@ -326,7 +328,7 @@ bool __not_in_flash_func(hsync_handler)(struct repeating_timer *t) {
                                 }
                                 if((pioa[2]&0x80)&&((pioa[3]&0x20)==0)) { 
                                     pioa_enable_irq=1;
-                                    ioport[0xfe]!=0x20;
+                                    ioport[0xfe]|=0x20;
                                 }
                             }
                         } 
@@ -368,16 +370,16 @@ bool __not_in_flash_func(sound_handler)(struct repeating_timer *t) {
 
                 beep_on=1;
 
-                if((i8253[0]&0x3e)==0x36) {  // Mode 3
+                if((i8253[0]&0xe)==0x6) {  // Mode 3
 
                     if(i8253_counter[0]>(i8253_preload[0]/2)) {
                         beep_volume=255;
                     } else {
                         beep_volume=0;
                     }
-                } else if((i8253[0]&0x3e)==0x30){ // mode 0
+                } else if((i8253[0]&0xe)==0){ // mode 0
                     beep_volume=0;
-                } else if((i8253[0]&0x3e)==0x3a){ // mode 5
+                } else if((i8253[0]&0xe)==0xa){ // mode 5
                     beep_volume=255;
                 }
             } else {
@@ -389,14 +391,14 @@ bool __not_in_flash_func(sound_handler)(struct repeating_timer *t) {
 
             // interrupt on Mode 0 via Z80PIO
 
-            if((i8253[0]&0x3e)==0x30) { // Mode 0
+//            if((i8253[0]&0x3e)==0x30) { // Mode 0
 
                 if((pioa[2]&0x80)&&((pioa[3]&0x10)==0)) {
                         pioa_enable_irq=1;
-                        ioport[0xfe]!=0x10;
+                        ioport[0xfe]|=0x10;
 
                 }
-            } 
+//            } 
 
         }
     } else {
@@ -582,7 +584,9 @@ void psg_write(uint32_t psg_no,uint32_t data) {
             }
         } else {
             psg_osc_interval[psg_no*3+channel]= TIME_UNIT/freq;
-            psg_osc_counter[psg_no*3+channel]=0;
+            if(psg_osc_counter[psg_no*3+channel]>psg_osc_interval[psg_no*3+channel]) {
+                psg_osc_counter[psg_no*3+channel]=0;
+            }            
             if(noise_flag==3) {
                 psg_noise_interval[psg_no]=TIME_UNIT/freq;
                 psg_noise_counter[psg_no]=0;
@@ -1822,10 +1826,28 @@ static void draw_framebuffer(uint16_t addr){
 
     for(uint32_t slice_yy=0;slice_yy<8;slice_yy++) {
 
-        if(color&0x80) {
-            bitdata=mzfont[ch*8+slice_yy+0x800];
+        if(pcg700ctrl&0x80) { // PCG700 enable
+            if(ch>=0x80) {
+                if(color&0x80) {
+                    bitdata=pcg700[(ch&0x7f)*8+slice_yy+0x400];
+                } else {
+                    bitdata=pcg700[(ch&0x7f)*8+slice_yy];
+                }                    
+            } else {
+                if(color&0x80) {
+                    bitdata=mzfont[ch*8+slice_yy+0x800];
+                } else {
+                    bitdata=mzfont[ch*8+slice_yy];
+                }
+            }
+
+
         } else {
-            bitdata=mzfont[ch*8+slice_yy];
+            if(color&0x80) {
+                bitdata=mzfont[ch*8+slice_yy+0x800];
+            } else {
+                bitdata=mzfont[ch*8+slice_yy];
+            }
         }
 
         bitdataw=bitexpand80[bitdata*2];
@@ -2451,7 +2473,7 @@ static void mem_write(void *context,uint16_t address, uint8_t data)
 {
 
     uint8_t b;
-    uint16_t addr;
+    uint16_t addr,pcgaddr;
     static uint32_t lastclocks;
 
     if((address<0x1000)&&(rombank)) {
@@ -2644,6 +2666,24 @@ static void mem_write(void *context,uint16_t address, uint8_t data)
 
                 }
 
+//          PCG-700 control
+
+            if(address==0xe012) {
+                pcg700ctrl=data;
+                if(pcg700ctrl&0x10) {
+                    pcgaddr=(pcg700ctrl&0x7)<<8;
+                    pcgaddr+=memioport[0x11];
+                    if(pcg700ctrl&0x20) { // COPY from CGROM
+                        if(pcgaddr<0x400) {
+                            pcg700[pcgaddr]=mzfont[pcgaddr+0x400];
+                        } else {
+                            pcg700[pcgaddr]=mzfont[pcgaddr+0x800];     
+                        }
+                    } else {
+                        pcg700[pcgaddr]=memioport[0x10];
+                    }
+                }
+            }
 
             memioport[address-0xe000]=data;
 
@@ -3224,15 +3264,10 @@ int main() {
     i8253_preload[0]=0;
     tape_ready=0;
 
-#ifdef USE_NEWMON
-
     for(int i=0x800;i<0xbff;i++){
         vram[i]=0x71;
     }
     memioport[2]=8;
-
-#endif
-
 
     // cpu.memRead = mem_read;
     // cpu.memWrite = mem_write;
